@@ -1,11 +1,12 @@
 name: grafana
-version: 4.6.3
+base: core18
 summary: feature rich metrics dashboard and graph editor
 description: |
   Grafana is a feature rich metrics dashboard and graph editor for Cloudwatch,
   Elasticsearch, Graphite, InfluxDB, OpenTSB, Prometheus, and Hosted Metrics.
 confinement: strict
-grade: stable
+
+adopt-info: grafana
 
 apps:
   grafana:
@@ -19,19 +20,23 @@ parts:
     source: bin
     organize:
       grafana.wrapper: bin/grafana.wrapper
-  go:
-    source-tag: go1.9.3
   grafana:
-    after: [go]
     plugin: go
     source: https://github.com/grafana/grafana.git
-    source-tag: v4.6.3
+    source-tag: v5.4.3
+    go-channel: 1.11/stable
     go-importpath: github.com/grafana/grafana
-    build: |
+    build-packages:
+      - git
+      - build-essential
+    override-build: |
         cd ../go/src/github.com/grafana/grafana
+        version="$(git describe --tags --always --dirty)"
+        [ -n "$(echo $version | grep '-')" ] && grade=devel || grade=stable
+        snapcraftctl set-version "$version"
+        snapcraftctl set-grade "$grade"
         go run build.go setup
         go run build.go build
-    install: |
         mkdir $SNAPCRAFT_PART_INSTALL/bin $SNAPCRAFT_PART_INSTALL/conf
         cp -p $SNAPCRAFT_PART_INSTALL/../go/bin/grafana-server $SNAPCRAFT_PART_INSTALL/bin/
         cp -p $SNAPCRAFT_PART_INSTALL/../src/conf/defaults.ini $SNAPCRAFT_PART_INSTALL/conf/
@@ -40,10 +45,8 @@ parts:
     plugin: nodejs
     source-type: git
     source: https://github.com/grafana/grafana.git
-    source-tag: v4.6.3
-    node-engine: 6.11.4
-    node-package-manager: yarn
-    node-packages: [grunt]
-    npm-run: [build]
-    install: |
-        cp -rf public $SNAPCRAFT_PART_INSTALL/public
+    source-tag: v5.4.3
+    nodejs-package-manager: yarn
+    override-build: |
+      snapcraftctl build
+      cp -rvf $SNAPCRAFT_PART_BUILD/public $SNAPCRAFT_PART_INSTALL/public
